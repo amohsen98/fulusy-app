@@ -1,33 +1,31 @@
 package com.fulusy.auth;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.security.PermitAll;
 import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 
 @Path("/api/auth")
 @Consumes(MediaType.APPLICATION_JSON)
+@Produces(MediaType.APPLICATION_JSON)
 @PermitAll
 public class AuthResource {
 
     @Inject AuthService authService;
-    @Inject ObjectMapper objectMapper;
 
     @POST
     @Path("/register")
-    @Produces(MediaType.APPLICATION_JSON)
-    public String register(@Valid RegisterRequest req) throws Exception {
+    public Response register(@Valid RegisterRequest req) {
         AuthResponse response = authService.register(req);
-        return objectMapper.writeValueAsString(response);
+        return Response.status(Response.Status.CREATED).entity(response).build();
     }
 
     @POST
     @Path("/login")
-    @Produces(MediaType.APPLICATION_JSON)
-    public String login(@Valid LoginRequest req) throws Exception {
+    public Response login(@Valid LoginRequest req) {
         AuthResponse response = authService.login(req);
-        return objectMapper.writeValueAsString(response);
+        return Response.ok(response).build();
     }
 }
