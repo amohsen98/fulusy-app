@@ -21,15 +21,29 @@ export function AuthProvider({ children }) {
 
   const login = async (data) => {
     const res = await api.login(data);
-    localStorage.setItem('fulusy_token', res.token);
-    setUser({ id: res.userId, email: res.email, name: res.name, language: res.language });
+    console.log('LOGIN RESPONSE:', res);
+    console.log('TOKEN FIELD:', res?.token);
+    if (res && res.token) {
+      localStorage.setItem('fulusy_token', res.token);
+      setUser({ id: res.userId, email: res.email, name: res.name, language: res.language });
+    } else {
+      console.error('No token in response!', res);
+      throw new Error('Login response missing token');
+    }
     return res;
   };
 
   const register = async (data) => {
     const res = await api.register(data);
-    localStorage.setItem('fulusy_token', res.token);
-    setUser({ id: res.userId, email: res.email, name: res.name, language: res.language });
+    console.log('REGISTER RESPONSE:', res);
+    console.log('TOKEN FIELD:', res?.token);
+    if (res && res.token) {
+      localStorage.setItem('fulusy_token', res.token);
+      setUser({ id: res.userId, email: res.email, name: res.name, language: res.language });
+    } else {
+      console.error('No token in response!', res);
+      throw new Error('Register response missing token');
+    }
     return res;
   };
 
