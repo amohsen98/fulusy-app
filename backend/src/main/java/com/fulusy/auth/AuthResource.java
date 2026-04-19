@@ -5,7 +5,7 @@ import jakarta.inject.Inject;
 import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Response;
+import org.jboss.resteasy.reactive.RestResponse;
 
 @Path("/api/auth")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -17,15 +17,14 @@ public class AuthResource {
 
     @POST
     @Path("/register")
-    public Response register(@Valid RegisterRequest req) {
+    public RestResponse<AuthResponse> register(@Valid RegisterRequest req) {
         AuthResponse response = authService.register(req);
-        return Response.status(Response.Status.CREATED).entity(response).build();
+        return RestResponse.status(RestResponse.Status.CREATED, response);
     }
 
     @POST
     @Path("/login")
-    public Response login(@Valid LoginRequest req) {
-        AuthResponse response = authService.login(req);
-        return Response.ok(response).build();
+    public AuthResponse login(@Valid LoginRequest req) {
+        return authService.login(req);
     }
 }
