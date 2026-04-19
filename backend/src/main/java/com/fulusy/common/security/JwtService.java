@@ -12,7 +12,7 @@ import java.util.Set;
 @ApplicationScoped
 public class JwtService {
 
-    @ConfigProperty(name = "mp.jwt.verify.publickey")
+    @ConfigProperty(name = "smallrye.jwt.verify.secretkey")
     String signKey;
 
     public String issueToken(Long userId, String email) {
