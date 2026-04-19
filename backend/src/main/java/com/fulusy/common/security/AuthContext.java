@@ -1,35 +1,21 @@
 package com.fulusy.common.security;
 
-import io.quarkus.security.identity.SecurityIdentity;
+import com.fulusy.common.exception.UnauthorizedException;
 import jakarta.enterprise.context.RequestScoped;
-import jakarta.inject.Inject;
-import org.eclipse.microprofile.jwt.JsonWebToken;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 
-/**
- * Request-scoped helper to resolve the currently authenticated user's ID
- * from the JWT. Inject this instead of parsing JWT claims in every endpoint.
- */
 @RequestScoped
 public class AuthContext {
 
-    @Inject JsonWebToken jwt;
-    @Inject SecurityIdentity identity;
+    @Context
+    ContainerRequestContext requestContext;
 
-    public Long getUserId() {
-        Long userId = jwt.getClaim("userId");
+    public Long getCurrentUserId() {
+        Object userId = requestContext.getProperty("userId");
         if (userId == null) {
-            // fallback: subject is the user id string
-            String sub = jwt.getSubject();
-            if (sub != null) return Long.parseLong(sub);
+            throw new UnauthorizedException("Not authenticated");
         }
-        return userId;
-    }
-
-    public String getEmail() {
-        return jwt.getName();
-    }
-
-    public boolean isAuthenticated() {
-        return !identity.isAnonymous();
+        return (Long) userId;
     }
 }
