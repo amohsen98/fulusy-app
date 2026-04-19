@@ -1,29 +1,84 @@
 package com.fulusy.common.security;
 
-import io.smallrye.jwt.build.Jwt;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
-
+import jakarta.inject.Inject;
+import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Set;
+import java.time.Instant;
+import java.util.Base64;
 
 @ApplicationScoped
 public class JwtService {
 
-    @ConfigProperty(name = "smallrye.jwt.verify.secretkey")
+    @ConfigProperty(name = "JWT_SIGN_KEY", defaultValue = "change-me-to-a-long-random-string-at-least-32-chars-long")
     String signKey;
 
+    @Inject ObjectMapper objectMapper;
+
     public String issueToken(Long userId, String email) {
-        SecretKeySpec key = new SecretKeySpec(
-                signKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return Jwt.issuer("https://fulusy.app")
-                .subject(String.valueOf(userId))
-                .upn(email)
-                .groups(Set.of("user"))
-                .claim("userId", userId)
-                .expiresIn(Duration.ofHours(24))
-                .sign(key);
+        try {
+            String header = base64Url("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
+            long now = Instant.now().getEpochSecond();
+            long exp = now + 86400;
+            String payload = base64Url(
+                "{\"sub\":\"" + userId + "\"," +
+                "\"upn\":\"" + email + "\"," +
+                "\"iss\":\"https://fulusy.app\"," +
+                "\"groups\":[\"user\"]," +
+                "\"userId\":" + userId + "," +
+                "\"iat\":" + now + "," +
+                "\"exp\":" + exp + "}"
+            );
+            String content = header + "." + payload;
+            String signature = hmacSha256(content, signKey);
+            return content + "." + signature;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create JWT", e);
+        }
+    }
+
+    public Long verifyAndGetUserId(String token) {
+        try {
+            String[] parts = token.split("\\.");
+            if (parts.length != 3) return null;
+
+            String content = parts[0] + "." + parts[1];
+            String expectedSig = hmacSha256(content, signKey);
+            if (!expectedSig.equals(parts[2])) {
+                Log.warn("JWT signature mismatch");
+                return null;
+            }
+
+            byte[] payloadBytes = Base64.getUrlDecoder().decode(parts[1]);
+            JsonNode payload = objectMapper.readTree(payloadBytes);
+
+            long exp = payload.get("exp").asLong();
+            if (Instant.now().getEpochSecond() > exp) {
+                Log.warn("JWT expired");
+                return null;
+            }
+
+            return payload.get("userId").asLong();
+        } catch (Exception e) {
+            Log.error("JWT verify failed: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String base64Url(String input) {
+        return Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(input.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String hmacSha256(String data, String key) throws Exception {
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
     }
 }
